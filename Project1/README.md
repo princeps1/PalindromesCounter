@@ -1,3 +1,5 @@
+# PalindromesCounterServer
+
 # [SERBIAN]
 Kreirati Web server koji vrši brojanje reči u okviru fajla. Brojati samo reči koje su palindromi.
 Svi zahtevi serveru se šalju preko browser-a korišćenjem GET metode. U zahtevu se kao
@@ -13,4 +15,3 @@ searches the root folder and all its subfolders for the requested file, and perf
 If the requested file does not exist, return an error to the user. 
 Also, if there are no palindrome words, return an appropriate message to the user.
 
-# PalindromesCounterServer

@@ -12,3 +12,5 @@ The request specifies the filename as a parameter. The server accepts the reques
 searches the root folder and all its subfolders for the requested file, and performs the counting. 
 If the requested file does not exist, return an error to the user. 
 Also, if there are no palindrome words, return an appropriate message to the user.
+
+# PalindromesCounterServer

@@ -22,6 +22,7 @@ namespace Palindrom.Services
 
         static int count;
         static Stopwatch stopwatch = new Stopwatch();
+        static object mutex = new object();
 
         public static void GetNumberOfPalindromes(HttpListener listener)
         {
@@ -114,7 +115,7 @@ namespace Palindrom.Services
             }
             finally
             {
-                if (palindromes.Count == 0)
+                if (count == 0)
                     Console.WriteLine("Nema palindroma u tekstu");
 
                 else
@@ -127,6 +128,7 @@ namespace Palindrom.Services
                     Console.WriteLine();
                     palindromes.Clear();
                     words.Clear();
+                    count = 0;
                 }
             }
         }
@@ -153,16 +155,17 @@ namespace Palindrom.Services
             int brFizJezgara = Environment.ProcessorCount;
             Console.WriteLine($"Broj fizickih jezgara: {brFizJezgara}");
 
-            //provera koliko dostupnih niti trenutno ima
+            //provera koliko dostupnih niti trenutno ima- nepotrebno
             int availableThreads;
             int completionPortThreads;
             ThreadPool.GetAvailableThreads(out availableThreads, out completionPortThreads);
             Console.WriteLine($"Dostupno niti: {availableThreads}");
 
-            ManualResetEvent resetEvent = new ManualResetEvent(false);
+            ManualResetEvent mainEvent = new ManualResetEvent(false);
+            AutoResetEvent threadEvent = new AutoResetEvent(true);
             int remainingTasks = words.Count;
 
-            
+
             //za svaku rec pozivanje po jedne niti da proveri da li je palindrom
             foreach (var word in tuple.Item1)
             {
@@ -173,17 +176,21 @@ namespace Palindrom.Services
 
                         if (!palindromes.Contains(word))
                         {
-                            palindromes.Add(word);
-                            count++;
+                            lock (mutex)
+                            {
+
+                                palindromes.Add(word);
+                                count++;
+                            }
                         }
                     }
                     if (Interlocked.Decrement(ref remainingTasks) == 0)//Interlocked obezbedjuje atomicne operacije
                     {
-                        resetEvent.Set();//signaliziraj kad zadnja nit zavrsi posao
+                        mainEvent.Set();//signaliziraj kad zadnja nit zavrsi posao
                     }
                 }, null);
             }
-            resetEvent.WaitOne();   //glavna nit ceka da poslednja nit signalizira        
+            mainEvent.WaitOne();   //glavna nit ceka da poslednja nit signalizira   
         }
     }
 }

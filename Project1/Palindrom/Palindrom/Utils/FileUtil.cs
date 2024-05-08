@@ -9,27 +9,30 @@ namespace Palindrom.Utils
 {
     public class FileUtil
     {
-        public static string GetFile(HttpListenerRequest request)
+        public static string? GetFile(HttpListenerRequest request)
         {
             try
             {
-                string rootFolder = Path.GetFullPath("."); // Dobijanje apsolutne putanje do root foldera
-                string filename = request.Url.Segments.Last(); // Odvajanje poslednjeg segmenta URL adrese
+                string rootFolder = Path.GetFullPath(".");
+                string filename = request!.Url!.Segments.Last();
                 string[] files = Directory.GetFiles(rootFolder, filename, SearchOption.AllDirectories);
 
                 if (files.Length > 0)
                     return files[0];
                 else
-                    throw new FileNotFoundException();
+                { 
+                    return null;
+                }
             }
-            catch (FileNotFoundException)
+            catch (Exception ex)
             {
-                Console.WriteLine("Fajl nije pronađen");
-                Environment.Exit(1); // Izađi iz programa sa kodom greške 1
-                return null;//nikad se nece izvrsiti
+                Console.WriteLine($"Greška prilikom pretrage fajla: {ex.Message}");
+                Environment.Exit(0);
+                return null;//nikad nece da se izvrsi
             }
         }
-
-
     }
+
+
 }
+

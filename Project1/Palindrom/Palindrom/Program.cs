@@ -20,6 +20,16 @@ namespace Palindrom
             listener.Prefixes.Add($"http://localhost:5050/");
             listener.Start();
 
+            //provera koliko imam fizickih jezgara - nepotrebno
+            int brFizJezgara = Environment.ProcessorCount;
+            Console.WriteLine($"Broj fizickih jezgara: {brFizJezgara}");
+
+            //provera koliko dostupnih niti trenutno ima- nepotrebno
+            int availableThreads;
+            int completionPortThreads;
+            ThreadPool.GetAvailableThreads(out availableThreads, out completionPortThreads);
+            Console.WriteLine($"Dostupno niti: {availableThreads}");
+
             Counter.GetNumberOfPalindromes(listener);
         }
 

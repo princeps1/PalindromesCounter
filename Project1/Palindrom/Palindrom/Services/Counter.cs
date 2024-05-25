@@ -15,8 +15,8 @@ namespace Palindrom.Services
 
     {
         static List<string> palindromes = new List<string>();
-        static List<string> words = new List<string>();
-        static Tuple<List<string>, DateTime> tuple = new Tuple<List<string>, DateTime>(words, DateTime.Now);
+        static List<string> sentences = new List<string>();
+        static Tuple<List<string>, DateTime> tuple = new Tuple<List<string>, DateTime>(sentences, DateTime.Now);
 
         static MemoryCache cache = new MemoryCache("PrincepsCash");
 
@@ -49,9 +49,8 @@ namespace Palindrom.Services
                 if (cache.Contains(filePath) && tuple.Item2 > lastModified)//ako kes sadrzi putanju fajla i ako je lastModified(zadnje vreme pristupa kesu)
                                                                            //manje od vremena poslednje izmene
                 {
-                    tuple = new Tuple<List<string>, DateTime>(words, DateTime.Now);
+                    tuple = new Tuple<List<string>, DateTime>(sentences, DateTime.Now);
                     int brojPal = (int)cache.Get(filePath);//pribavljanje broja reci iz kesa
-                                                           //Console.WriteLine($"Broj palindroma iz kesa: {brojPal}\n=========================");
                     Print(context, $"Broj palindroma iz kesa: {brojPal}");
                 }
                 else
@@ -60,23 +59,22 @@ namespace Palindrom.Services
                     if (cache.Contains(filePath))
                         cache.Remove(filePath);
 
-                    //Procitaj ceo tekst i u Listi words stavi sve reci
-                    char[] separators = { ' ', ',', '.', '\n' };
-                    words = File.ReadAllText(filePath).Split(separators, StringSplitOptions.RemoveEmptyEntries).ToList();
+                    //Procitaj ceo tekst i u Listi sentences stavi sve recenice
+                    sentences = File.ReadAllText(filePath).Split('.', StringSplitOptions.RemoveEmptyEntries).ToList();
 
                     //davanje vrednosti tuple objekta
-                    tuple = new Tuple<List<string>, DateTime>(words, DateTime.Now);
+                    tuple = new Tuple<List<string>, DateTime>(sentences, DateTime.Now);
                     count = 0;
-                    if (words.Count > 0)
+
+                    if (sentences.Count > 0)
                     {
                         stopwatch.Start();
                         MultiThreading();
-                        //Sequential();
                         stopwatch.Stop();
 
                         WriteInCacheAndPrint(filePath, context);
 
-                        Console.WriteLine($"Vreme za brojanje:{(int)Math.Round(stopwatch.Elapsed.TotalNanoseconds)} nanosekundi\n=========================");
+                        Console.WriteLine($"Vreme za brojanje:{(int)Math.Round(stopwatch.Elapsed.TotalMilliseconds)} nanosekundi\n=========================");
                         stopwatch.Reset();
                     }
                     else
@@ -87,38 +85,51 @@ namespace Palindrom.Services
 
         public static void MultiThreading()
         {
-            //provera koliko imam fizickih jezgara - nepotrebno
-            int brFizJezgara = Environment.ProcessorCount;
-            Console.WriteLine($"Broj fizickih jezgara: {brFizJezgara}");
-
-            //provera koliko dostupnih niti trenutno ima- nepotrebno
-            int availableThreads;
-            int completionPortThreads;
-            ThreadPool.GetAvailableThreads(out availableThreads, out completionPortThreads);
-            Console.WriteLine($"Dostupno niti: {availableThreads}");
-
             ManualResetEvent mainEvent = new ManualResetEvent(false);
-            int remainingTasks = words.Count;
+            int remainingTasks = sentences.Count;
 
-
-            //za svaku rec pozivanje po jedne niti da proveri da li je palindrom
-            foreach (var word in tuple.Item1)
+            //za svaku recenicu pozivanje po jedne niti 
+            foreach (var sentence in tuple.Item1)
             {
                 ThreadPool.QueueUserWorkItem((state) =>
                 {
-                    if (isPalindrom(word))
+                    string sentenceLower = sentence.ToLower();
+                    List<string> words = new List<string>();
+                    char[] separators = { ' ', ',', '.', '\n' };
+                    words = sentenceLower.Split(separators, StringSplitOptions.RemoveEmptyEntries).ToList();
+                    foreach (string word in words)
                     {
+                        if (word.Length < 2)
+                            continue;
 
-                        if (!palindromes.Contains(word))
+                        int i = 0;
+                        int j = word.Length - 1;
+                        bool isPalindrome = true;
+
+                        while (i < j)
+                        {
+                            if (word[i] != word[j])
+                            {
+                                isPalindrome = false;
+                                break;
+                            }
+                            i++;
+                            j--;
+                        }
+
+                        if (isPalindrome)
                         {
                             lock (mutex)
                             {
-
-                                palindromes.Add(word);
-                                count++;
+                                if (!palindromes.Contains(word))
+                                {
+                                    palindromes.Add(word);
+                                    count++;
+                                }
                             }
                         }
                     }
+
                     if (Interlocked.Decrement(ref remainingTasks) == 0)//Interlocked obezbedjuje atomicne operacije
                     {
                         mainEvent.Set();//signaliziraj kad zadnja nit zavrsi posao
@@ -128,27 +139,7 @@ namespace Palindrom.Services
             mainEvent.WaitOne();   //glavna nit ceka da poslednja nit signalizira   
         }
 
-        static public bool isPalindrom(string word)
-        {
-            word = word.ToLower();
-            if (word.Length < 2)
-                return false;
-
-            int i = 0;
-            int j = word.Length - 1;
-
-            // provera petljom da li je rec palindrom ili ne
-            while (i <= j)
-            {
-                if (word[i] != word[j])
-                    return false;
-                i++;
-                j--;
-            }
-
-            //vrati true ako je rec izasla iz while
-            return true;
-        }
+       
 
         static public void WriteInCacheAndPrint(string filePath, HttpListenerContext context)
         {
@@ -169,7 +160,7 @@ namespace Palindrom.Services
                 {
                     Print(context, $"Broj palindroma u fajlu je :{count}");
                     palindromes.Clear();
-                    words.Clear();
+                    sentences.Clear();
 
                 }
             }

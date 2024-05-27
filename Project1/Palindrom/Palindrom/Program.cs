@@ -30,7 +30,16 @@ namespace Palindrom
             ThreadPool.GetAvailableThreads(out availableThreads, out completionPortThreads);
             Console.WriteLine($"Dostupno niti: {availableThreads}");
 
-            Counter.GetNumberOfPalindromes(listener);
+            Console.WriteLine("Server startovan...");
+
+            while (true)
+            {
+                // Ceka na novi zahtev
+                HttpListenerContext context = listener.GetContext();
+                Thread t = new Thread(() => Counter.GetNumberOfPalindromes(context));
+
+                t.Start();
+            }
         }
 
     }

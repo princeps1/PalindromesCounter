@@ -12,161 +12,157 @@ using System.Runtime.Caching;
 namespace Palindrom.Services
 {
     class Counter
-
     {
-        static List<string> palindromes = new List<string>();
-        static List<string> sentences = new List<string>();
-        static Tuple<List<string>, DateTime> tuple = new Tuple<List<string>, DateTime>(sentences, DateTime.Now);
+
 
         static MemoryCache cache = new MemoryCache("PrincepsCash");
 
-        static int count;
-        static Stopwatch stopwatch = new Stopwatch();
-        static object mutex = new object();
-
-        public static void GetNumberOfPalindromes(HttpListener listener)
+        public static void GetNumberOfPalindromes(HttpListenerContext context)
         {
-            Console.WriteLine("Server startovan...");
+            List<string> palindromes = new List<string>();//upisujem
+            List<string> sentences = new List<string>();//samo citam
+           
+ 
+            Stopwatch stopwatch = new Stopwatch();
+            object mutex = new object();
+            int remainingTasks;//upisujem
+
+
+
             DateTime lastModified;//zadnje vreme pristupa kesu za neki fajl
+            int count = 0;
+            palindromes.Clear();
+            sentences.Clear();
 
-            while (true)
+
+            var request = context.Request;
+            string? filePath = FileUtil.GetFile(request);
+            if (filePath == null)
             {
-                HttpListenerContext context = listener.GetContext();
-
-
-                var request = context.Request;
-                string? filePath = FileUtil.GetFile(request);
-                if (filePath == null)
-                {
-
-                    Print(context, "NE POSTOJI FAJL");
-                    continue;
-                }
-
-
-
-                lastModified = File.GetLastWriteTime(filePath);//dobijanje vremena zadnje modifikacije fajla
-                if (cache.Contains(filePath) && tuple.Item2 > lastModified)//ako kes sadrzi putanju fajla i ako je lastModified(zadnje vreme pristupa kesu)
-                                                                           //manje od vremena poslednje izmene
-                {
-                    tuple = new Tuple<List<string>, DateTime>(sentences, DateTime.Now);
-                    int brojPal = (int)cache.Get(filePath);//pribavljanje broja reci iz kesa
-                    Print(context, $"Broj palindroma iz kesa: {brojPal}");
-                }
-                else
-                {
-                    //izbrisi iz kesa put fajla jer nije zadnje modifikovan
-                    if (cache.Contains(filePath))
-                        cache.Remove(filePath);
-
-                    //Procitaj ceo tekst i u Listi sentences stavi sve recenice
-                    sentences = File.ReadAllText(filePath).Split('.', StringSplitOptions.RemoveEmptyEntries).ToList();
-
-                    //davanje vrednosti tuple objekta
-                    tuple = new Tuple<List<string>, DateTime>(sentences, DateTime.Now);
-                    count = 0;
-
-                    if (sentences.Count > 0)
-                    {
-                        stopwatch.Start();
-                        MultiThreading();
-                        stopwatch.Stop();
-
-                        WriteInCacheAndPrint(filePath, context);
-
-                        Console.WriteLine($"Vreme za brojanje:{(int)Math.Round(stopwatch.Elapsed.TotalMilliseconds)} nanosekundi\n=========================");
-                        stopwatch.Reset();
-                    }
-                    else
-                        Print(context, "FAJL JE PRAZAN");
-                }
+                Print(context, "NE POSTOJI FAJL",null!,0);
+                return;
             }
-        }
 
-        public static void MultiThreading()
-        {
-            ManualResetEvent mainEvent = new ManualResetEvent(false);
-            int remainingTasks = sentences.Count;
-
-            //za svaku recenicu pozivanje po jedne niti 
-            foreach (var sentence in tuple.Item1)
+            
+            //Ako se nalazi u kesu
+            lastModified = File.GetLastWriteTime(filePath);//dobijanje vremena zadnje modifikacije fajla
+            Tuple<int, DateTime> tuple = new Tuple<int, DateTime>(count, lastModified);
+            Tuple<int, DateTime>? cachedTuple = cache.Get(filePath) as Tuple<int,DateTime>;
+            if (cache.Contains(filePath) && 
+                tuple.Item2 == cachedTuple!.Item2)//ako kes sadrzi putanju fajla i ako je lastModified manje od vremena poslednje izmene
             {
-                ThreadPool.QueueUserWorkItem((state) =>
+                
+                Print(context, $"Broj palindroma iz kesa: {cachedTuple.Item1}",null!,0);
+            }
+            //
+
+            //ako se ne nalazi u kesu
+            else
+            {
+                //izbrisi iz kesa put fajla jer nije zadnje modifikovan
+                if (cache.Contains(filePath))
+                    cache.Remove(filePath);
+
+                //Procitaj ceo tekst i u Listi sentences stavi sve recenice
+                sentences = File.ReadAllText(filePath).Split('.', StringSplitOptions.RemoveEmptyEntries).ToList();
+
+                //davanje vrednosti tuple objekta
+                
+
+                if (sentences.Count > 0)
                 {
-                    string sentenceLower = sentence.ToLower();
-                    List<string> words = new List<string>();
-                    char[] separators = { ' ', ',', '.', '\n' };
-                    words = sentenceLower.Split(separators, StringSplitOptions.RemoveEmptyEntries).ToList();
-                    foreach (string word in words)
+                    stopwatch.Start();
+                    ManualResetEvent mainEvent = new ManualResetEvent(false);
+                    remainingTasks = sentences.Count;
+                    //za svaku recenicu pozivanje po jedne niti 
+                    foreach (var sentence in sentences)
                     {
-                        if (word.Length < 2)
-                            continue;
-
-                        int i = 0;
-                        int j = word.Length - 1;
-                        bool isPalindrome = true;
-
-                        while (i < j)
+                        string curSentence = sentence;
+                        ThreadPool.QueueUserWorkItem((state) =>
                         {
-                            if (word[i] != word[j])
-                            {
-                                isPalindrome = false;
-                                break;
-                            }
-                            i++;
-                            j--;
-                        }
 
-                        if (isPalindrome)
-                        {
-                            lock (mutex)
+                            string sentenceLower = curSentence.ToLower();
+                            List<string> words = new List<string>();
+                            char[] separators = { ' ', ',', '.', '\n' };
+                            words = sentenceLower.Split(separators, StringSplitOptions.RemoveEmptyEntries).ToList();
+                            foreach (string word in words)
                             {
-                                if (!palindromes.Contains(word))
+                                if (word.Length < 2)
+                                    continue;
+
+                                int i = 0;
+                                int j = word.Length - 1;
+                                bool isPalindrome = true;
+
+                                while (i < j)
                                 {
-                                    palindromes.Add(word);
-                                    count++;
+                                    if (word[i] != word[j])
+                                    {
+                                        isPalindrome = false;
+                                        break;
+                                    }
+                                    i++;
+                                    j--;
+                                }
+
+                                if (isPalindrome)
+                                {
+
+                                    if (!palindromes.Contains(word))
+                                    {
+                                        lock (mutex)
+                                        {
+                                            palindromes.Add(word);
+                                            count++;
+                                        }
+                                    }
                                 }
                             }
-                        }
+                            if (Interlocked.Decrement(ref remainingTasks) == 0)//Interlocked obezbedjuje atomicne operacije
+                            {
+                                mainEvent.Set();//signaliziraj kad zadnja nit zavrsi posao
+                            }
+                        }, null);
                     }
+                    mainEvent.WaitOne();   //glavna nit ceka da poslednja nit signalizira   
+                    stopwatch.Stop();
 
-                    if (Interlocked.Decrement(ref remainingTasks) == 0)//Interlocked obezbedjuje atomicne operacije
+
+
+
+                    //ISPISIVANJE
+                    if (count == 0)
+                        Print(context, "Nema palindroma u datom fajlu", palindromes,count);
+                    else
                     {
-                        mainEvent.Set();//signaliziraj kad zadnja nit zavrsi posao
+                        Print(context, $"Broj palindroma u fajlu je :{count}", palindromes,count);
                     }
-                }, null);
+                    tuple = new Tuple<int,DateTime>(count, lastModified);
+                    WriteInCache(filePath, context,tuple);
+
+                    Console.WriteLine($"Vreme za brojanje:{(int)Math.Round(stopwatch.Elapsed.TotalMilliseconds)} milisekundi\n=========================");
+                    stopwatch.Reset();
+                }
+                else
+                    Print(context, "FAJL JE PRAZAN",palindromes,count);
             }
-            mainEvent.WaitOne();   //glavna nit ceka da poslednja nit signalizira   
+
         }
 
-       
 
-        static public void WriteInCacheAndPrint(string filePath, HttpListenerContext context)
+        static public void WriteInCache(string filePath, HttpListenerContext context,Tuple<int,DateTime> tuple)
         {
             try
             {
-                cache.Set(filePath, count, DateTimeOffset.UtcNow.AddHours(1));//dodavanje u kes fajl koji je trenutno prebrojan
+                cache.Set(filePath, tuple, DateTimeOffset.UtcNow.AddHours(1));//dodavanje u kes fajl koji je trenutno prebrojan
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Greška prilikom postavljanja rezultata u keš: {ex.Message}");
             }
-            finally
-            {
-
-                if (count == 0)
-                    Print(context, "Nema palindroma u datom fajlu");
-                else
-                {
-                    Print(context, $"Broj palindroma u fajlu je :{count}");
-                    palindromes.Clear();
-                    sentences.Clear();
-
-                }
-            }
         }
 
-        static public void Print(HttpListenerContext context, string tekst)
+        static public void Print(HttpListenerContext context, string tekst,List<string> palindromes,int count)
         {
             var html = new StringBuilder("<html><head>");
             html.Append("<style>");
@@ -183,10 +179,12 @@ namespace Palindrom.Services
 
             if (count > 0)
             {
+                int i = 1;
                 html.Append("<ul>");
                 foreach (var palindrom in palindromes)
                 {
-                    html.AppendFormat("<li>" + palindrom + "</li>");
+                    html.AppendFormat("<li>" + i + ". " + palindrom + "</li>");
+                    i++;
                 }
                 html.Append("</ul>");
             }

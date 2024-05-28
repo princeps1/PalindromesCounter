@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "dgSpecHash": "pe4XIrHTiAiBeoj3/Id46RpgMEL1mOe1NCYTn08jWTCiPCxm4x2Aa6+Bv3vqYTGNotYTUesG7VeKBeduYxk9ew==",
+  "success": true,
+  "projectFilePath": "C:\\Users\\Princeps\\Desktop\\Sistemsko programiranje\\System-programming\\Project2\\Palindrom\\Palindrom\\Palindrom.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\Princeps\\.nuget\\packages\\system.configuration.configurationmanager\\8.0.0\\system.configuration.configurationmanager.8.0.0.nupkg.sha512",
+    "C:\\Users\\Princeps\\.nuget\\packages\\system.diagnostics.eventlog\\8.0.0\\system.diagnostics.eventlog.8.0.0.nupkg.sha512",
+    "C:\\Users\\Princeps\\.nuget\\packages\\system.runtime.caching\\8.0.0\\system.runtime.caching.8.0.0.nupkg.sha512",
+    "C:\\Users\\Princeps\\.nuget\\packages\\system.security.cryptography.protecteddata\\8.0.0\\system.security.cryptography.protecteddata.8.0.0.nupkg.sha512"
+  ],
+  "logs": []
+}

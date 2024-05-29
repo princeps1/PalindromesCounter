@@ -17,7 +17,7 @@ namespace Palindrom.Services
 
         static MemoryCache cache = new MemoryCache("PrincepsCash");
 
-       static public MemoryCache GetCache() { return cache; }
+        static public MemoryCache GetCache() { return cache; }
 
 
         static public void WriteInCache(string filePath, HttpListenerContext context,Tuple<int,DateTime> tuple)
